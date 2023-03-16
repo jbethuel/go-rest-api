@@ -31,11 +31,27 @@ var books = []Book{
 	},
 }
 
-func getBooks(context *gin.Context) {
-	context.IndentedJSON(http.StatusOK, books)
+func remove(slice []Book, s int) []Book {
+	return append(slice[:s], slice[s+1:]...)
 }
 
-func getBookById(id string) (book Book, err error) {
+func deleteBookById(id string) (bool, error) {
+	var index int = -1
+	for i, b := range books {
+		if b.Id == id {
+			index = i
+		}
+	}
+	if index == -1 {
+		return false, errors.New("Document not found")
+	}
+
+	books = remove(books, index)
+
+	return true, nil
+}
+
+func getBookById(id string) (Book, error) {
 	for i, b := range books {
 		if b.Id == id {
 			return books[i], nil
@@ -56,11 +72,44 @@ func getBook(context *gin.Context) {
 	context.IndentedJSON(http.StatusOK, book)
 }
 
+func checkBook(id string) bool {
+	for _, b := range books {
+		if b.Id == id {
+			return true
+		}
+	}
+
+	return false
+}
+
+func deleteBook(context *gin.Context) {
+	id := context.Param("id")
+
+	_, err := deleteBookById(id)
+	if err != nil {
+		context.IndentedJSON(http.StatusBadRequest, err.Error())
+		return
+	}
+
+	context.IndentedJSON(http.StatusOK, "success")
+}
+
+func getBooks(context *gin.Context) {
+	context.IndentedJSON(http.StatusOK, books)
+}
+
 func addBook(context *gin.Context) {
 	var newBook Book
 
 	err := context.BindJSON(&newBook)
 	if err != nil {
+		context.IndentedJSON(http.StatusBadRequest, err.Error())
+		return
+	}
+
+	doesBookExists := checkBook(newBook.Id)
+	if doesBookExists == true {
+		context.IndentedJSON(http.StatusBadRequest, "Book already added")
 		return
 	}
 
@@ -73,6 +122,7 @@ func main() {
 	router := gin.Default()
 
 	router.GET("/books/:id", getBook)
+	router.DELETE("/books/:id", deleteBook)
 	router.GET("/books", getBooks)
 	router.POST("/books", addBook)
 
