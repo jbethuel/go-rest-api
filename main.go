@@ -11,6 +11,7 @@ func main() {
 
 	router.GET("/books/:id", books.GetBook)
 	router.DELETE("/books/:id", books.DeleteBook)
+	router.PATCH("/books/:id", books.PatchBook)
 	router.GET("/books", books.GetBooks)
 	router.POST("/books", books.AddBook)
 

@@ -31,34 +31,10 @@ var books = []Book{
 	},
 }
 
+var blankBook = Book{Id: "", Name: "", Completed: false}
+
 func remove(slice []Book, s int) []Book {
 	return append(slice[:s], slice[s+1:]...)
-}
-
-func deleteBookById(id string) (bool, error) {
-	var index int = -1
-	for i, b := range books {
-		if b.Id == id {
-			index = i
-		}
-	}
-	if index == -1 {
-		return false, errors.New("Document not found")
-	}
-
-	books = remove(books, index)
-
-	return true, nil
-}
-
-func getBookById(id string) (Book, error) {
-	for i, b := range books {
-		if b.Id == id {
-			return books[i], nil
-		}
-	}
-
-	return Book{Id: "", Name: "", Completed: false}, errors.New("Document not found")
 }
 
 func checkBook(id string) bool {
@@ -69,6 +45,69 @@ func checkBook(id string) bool {
 	}
 
 	return false
+}
+
+func addBookToBooks(book Book) error {
+	doesBookExists := checkBook(book.Id)
+	if doesBookExists == true {
+		return errors.New("Book already added")
+	}
+
+	books = append(books, book)
+
+	return nil
+}
+
+func deleteBookById(id string) error {
+	doesBookExists := checkBook(id)
+	if doesBookExists == false {
+		return errors.New("Document not found")
+	}
+
+	var index int = -1
+	for i, b := range books {
+		if b.Id == id {
+			index = i
+		}
+	}
+	if index == -1 {
+		return errors.New("Unexpected error occured.")
+	}
+
+	books = remove(books, index)
+
+	return nil
+}
+
+func getBookById(id string) (Book, error) {
+	doesBookExists := checkBook(id)
+	if doesBookExists == false {
+		return blankBook, errors.New("Document not found")
+	}
+
+	for i, b := range books {
+		if b.Id == id {
+			return books[i], nil
+		}
+	}
+
+	return blankBook, errors.New("Unexpected error occured.")
+}
+
+func updateBookById(id string, b Book) error {
+	doesBookExists := checkBook(id)
+	if doesBookExists == false {
+		return errors.New("Document not found")
+	}
+
+	for i, eachBook := range books {
+		if eachBook.Id == id {
+			books[i] = b
+			return nil
+		}
+	}
+
+	return errors.New("Unexpected error occured.")
 }
 
 func GetBook(context *gin.Context) {
@@ -85,7 +124,7 @@ func GetBook(context *gin.Context) {
 func DeleteBook(context *gin.Context) {
 	id := context.Param("id")
 
-	_, err := deleteBookById(id)
+	err := deleteBookById(id)
 	if err != nil {
 		context.IndentedJSON(http.StatusBadRequest, err.Error())
 		return
@@ -101,19 +140,37 @@ func GetBooks(context *gin.Context) {
 func AddBook(context *gin.Context) {
 	var newBook Book
 
-	err := context.BindJSON(&newBook)
-	if err != nil {
-		context.IndentedJSON(http.StatusBadRequest, err.Error())
+	err1 := context.BindJSON(&newBook)
+	if err1 != nil {
+		context.IndentedJSON(http.StatusBadRequest, err1.Error())
 		return
 	}
 
-	doesBookExists := checkBook(newBook.Id)
-	if doesBookExists == true {
-		context.IndentedJSON(http.StatusBadRequest, "Book already added")
+	err2 := addBookToBooks(newBook)
+	if err2 != nil {
+		context.IndentedJSON(http.StatusBadRequest, err2.Error())
 		return
 	}
-
-	books = append(books, newBook)
 
 	context.IndentedJSON(http.StatusCreated, newBook)
+}
+
+func PatchBook(context *gin.Context) {
+	id := context.Param("id")
+
+	var newBook Book
+
+	err1 := context.BindJSON(&newBook)
+	if err1 != nil {
+		context.IndentedJSON(http.StatusBadRequest, err1.Error())
+		return
+	}
+
+	err2 := updateBookById(id, newBook)
+	if err2 != nil {
+		context.IndentedJSON(http.StatusBadRequest, err2.Error())
+		return
+	}
+
+	context.IndentedJSON(http.StatusOK, newBook)
 }
